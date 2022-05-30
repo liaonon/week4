@@ -1,13 +1,42 @@
 import detectEthereumProvider from "@metamask/detect-provider"
 import { Strategy, ZkIdentity } from "@zk-kit/identity"
 import { generateMerkleProof, Semaphore } from "@zk-kit/protocols"
-import { providers } from "ethers"
+import { providers, Contract, utils } from "ethers"
 import Head from "next/head"
-import React from "react"
+import React, {useEffect ,useState} from "react"
 import styles from "../styles/Home.module.css"
 
+import * as yup from "yup";
+import TextField from "@mui/material/TextField"
+import Button from "@mui/material/Button"
+import { useForm } from "react-hook-form"
+import { Stack } from "@mui/material"
+import { yupResolver } from '@hookform/resolvers/yup';
+import Greeter from 'artifacts/contracts/Greeters.sol/Greeters.json'
+
+
+const users = yup.object({
+    Name: yup.string().required(),
+    Age: yup.number().positive().integer().required(),
+    Address: yup.string().matches(/^0x[a-f0-9]{40}$/i).required(),
+  }).required();
+
 export default function Home() {
-    const [logs, setLogs] = React.useState("Connect your wallet and greet!")
+    const [logs, setLogs] = useState("Connect your wallet and greet!")
+    const [greets, setGreets] = useState("")
+    const [greeting, setGreeting] = useState("")
+
+
+    useEffect(() => {
+        const provider2 = new providers.JsonRpcProvider("http://localhost:8545")
+        const contract = new Contract("0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512", Greeter.abi, provider2)
+
+        contract.on("NewGreeting", (res) => {
+            const greetout = utils.parseBytes32String(res)
+            setGreets(greetout)
+        })
+        
+    }, [])
 
     async function greet() {
         setLogs("Creating your Semaphore identity...")
@@ -26,9 +55,7 @@ export default function Home() {
 
         const merkleProof = generateMerkleProof(20, BigInt(0), identityCommitments, identityCommitment)
 
-        setLogs("Creating your Semaphore proof...")
-
-        const greeting = "Hello world"
+        setGreeting("Hello world")
 
         const witness = Semaphore.genWitness(
             identity.getTrapdoor(),
@@ -59,6 +86,13 @@ export default function Home() {
         }
     }
 
+
+    const { register, handleSubmit, formState:{ errors } } = useForm({
+        resolver: yupResolver(users)
+    });
+
+
+
     return (
         <div className={styles.container}>
             <Head>
@@ -74,9 +108,32 @@ export default function Home() {
 
                 <div className={styles.logs}>{logs}</div>
 
-                <div onClick={() => greet()} className={styles.button}>
+                
+
+                <form onSubmit={handleSubmit((data) => {
+                    console.log(data);
+                })}>
+                    <Stack>
+                        <TextField {...register("Name")} label="Name" variant="standard" />
+                        <p>{errors.Name?.message}</p>
+                        <TextField {...register("Age")} label="Age" variant="standard" />
+                        <p>{errors.Age?.message}</p>
+                        <TextField {...register("Address")} label="Address" variant="standard" />
+                        <p>{errors.Address?.message}</p>
+                        <TextField type="submit" />
+                    </Stack>
+                </form>
+                <Stack>
+                    <TextField type="text" placeholder="Input Your Greet text" value={greeting} onChange={(input) => { setGreeting(input.target.value) }} margin="normal" color="secondary" focused/>
+                    <Button onClick={() => greet()} className={styles.button} >
                     Greet
-                </div>
+                    </Button>
+
+                    <h2>Here are the Greets</h2>
+                    
+                    <ul>{greets}</ul>
+                </Stack>
+
             </main>
         </div>
     )

@@ -1,4 +1,8 @@
 // TODO: Import necessary libraries. Check cargo.toml and the documentation of the libraries.
+
+use ark-bls12-381::Fq;
+ 
+
 struct Freivald {
     x: // Array/Vec of Fq,
 }
